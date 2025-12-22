@@ -1,5 +1,3 @@
-# Procurement Backend - Система автоматизации закупок
-
 Backend приложение для автоматизации закупок, построенное на Django REST Framework.
 
 ## Технологии
@@ -24,7 +22,7 @@ cd ntlg_thesis
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate  # На Windows: venv\Scripts\activate
+source venv/bin/activate
 ```
 
 ### 3. Установка зависимостей
