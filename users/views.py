@@ -38,51 +38,43 @@ class RegisterView(generics.CreateAPIView):
 def login_view(request):
     """API для авторизации пользователя"""
     serializer = LoginSerializer(data=request.data)
-    if serializer.is_valid():
-        email = serializer.validated_data['email'].strip().lower()
-        password = serializer.validated_data['password']
-        
-        # Проверяем существование пользователя
-        try:
-            user = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Неверный email или пароль'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
-        # Используем email для аутентификации, так как USERNAME_FIELD = 'email'
-        # Важно использовать точный email из базы данных
-        authenticated_user = authenticate(
-            request, 
-            username=user.email, 
-            password=password
-        )
-        
-        if authenticated_user:
-            token, created = Token.objects.get_or_create(user=authenticated_user)
-            return Response({
-                'user': UserSerializer(authenticated_user).data,
-                'token': token.key,
-                'message': 'Успешная авторизация'
-            })
-        else:
-            # Дополнительная проверка пароля для отладки
-            if user.check_password(password):
-                # Если пароль правильный, но authenticate не работает,
-                # создаем токен вручную
-                token, created = Token.objects.get_or_create(user=user)
-                return Response({
-                    'user': UserSerializer(user).data,
-                    'token': token.key,
-                    'message': 'Успешная авторизация'
-                })
-            return Response(
-                {'error': 'Неверный email или пароль'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    email = serializer.validated_data['email'].strip().lower()
+    password = serializer.validated_data['password']
+    
+    # Проверяем существование пользователя
+    try:
+        user = User.objects.get(email__iexact=email)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'Неверный email или пароль'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    # Проверяем пароль напрямую (более надежный способ)
+    if not user.check_password(password):
+        return Response(
+            {'error': 'Неверный email или пароль'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    # Проверяем, активен ли пользователь
+    if not user.is_active:
+        return Response(
+            {'error': 'Аккаунт деактивирован'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    # Создаем или получаем токен
+    token, created = Token.objects.get_or_create(user=user)
+    
+    return Response({
+        'user': UserSerializer(user).data,
+        'token': token.key,
+        'message': 'Успешная авторизация'
+    })
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
