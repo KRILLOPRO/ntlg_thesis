@@ -42,15 +42,9 @@ def login_view(request):
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
         
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Неверный email или пароль'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        # Используем email для аутентификации, так как USERNAME_FIELD = 'email'
+        user = authenticate(request, username=email, password=password)
         
-        user = authenticate(username=user.username, password=password)
         if user:
             token, created = Token.objects.get_or_create(user=user)
             return Response({
