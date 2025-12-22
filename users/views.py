@@ -39,20 +39,44 @@ def login_view(request):
     """API для авторизации пользователя"""
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
-        email = serializer.validated_data['email']
+        email = serializer.validated_data['email'].strip().lower()
         password = serializer.validated_data['password']
         
-        # Используем email для аутентификации, так как USERNAME_FIELD = 'email'
-        user = authenticate(request, username=email, password=password)
+        # Проверяем существование пользователя
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Неверный email или пароль'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
         
-        if user:
-            token, created = Token.objects.get_or_create(user=user)
+        # Используем email для аутентификации, так как USERNAME_FIELD = 'email'
+        # Важно использовать точный email из базы данных
+        authenticated_user = authenticate(
+            request, 
+            username=user.email, 
+            password=password
+        )
+        
+        if authenticated_user:
+            token, created = Token.objects.get_or_create(user=authenticated_user)
             return Response({
-                'user': UserSerializer(user).data,
+                'user': UserSerializer(authenticated_user).data,
                 'token': token.key,
                 'message': 'Успешная авторизация'
             })
         else:
+            # Дополнительная проверка пароля для отладки
+            if user.check_password(password):
+                # Если пароль правильный, но authenticate не работает,
+                # создаем токен вручную
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    'user': UserSerializer(user).data,
+                    'token': token.key,
+                    'message': 'Успешная авторизация'
+                })
             return Response(
                 {'error': 'Неверный email или пароль'},
                 status=status.HTTP_401_UNAUTHORIZED

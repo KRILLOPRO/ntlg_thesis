@@ -19,6 +19,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})
+        # Нормализуем email и username (убираем пробелы)
+        if 'email' in attrs:
+            attrs['email'] = attrs['email'].strip().lower()
+        if 'username' in attrs:
+            attrs['username'] = attrs['username'].strip()
         return attrs
     
     def create(self, validated_data):
